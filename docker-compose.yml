@@ -1,0 +1,86 @@
+volumes:
+   pgdb:
+
+services:
+  redis:
+    image: redis
+    container_name: redis_sentry
+    ports:
+     - "6379:6379"
+    networks:
+      - sentry_net
+
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: qoQ3Xf58Czxgo # secure password
+      POSTGRES_DB: sentry
+    container_name: postgre_sentry
+    volumes:
+     - pgdb:/var/lib/postgresql/data
+    networks:
+      - sentry_net
+
+  sentry:
+    image: sentry
+    links:
+     - redis
+     - postgres
+    ports:
+     - "127.0.0.1:9090:9000"
+    container_name: sentry
+    volumes:
+      - ./.env:/etc/sentry/.env
+      - ./config.yml:/etc/sentry/config.yml
+    environment:
+      SENTRY_SECRET_KEY: 'wBmoNHn38F6u6iWYBkOkuvN9oAzDIEY46aiHIuAEZuWVCHH1Rm99HM7TdukJY9DU' # secure secret key
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: qoQ3Xf58Czxgo
+      SENTRY_REDIS_HOST: redis
+    networks:
+      - sentry_net
+
+  cron:
+    image: sentry
+    volumes:
+      - ./.env:/etc/sentry/.env
+      - ./config.yml:/etc/sentry/config.yml
+    links:
+     - redis
+     - postgres
+    networks:
+      - sentry_net
+    container_name: cron_sentry
+    command: "sentry run cron"
+    environment:
+      SENTRY_SECRET_KEY: 'wBmoNHn38F6u6iWYBkOkuvN9oAzDIEY46aiHIuAEZuWVCHH1Rm99HM7TdukJY9DU' # secure secret key
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: qoQ3Xf58Czxgo # secure password
+      SENTRY_REDIS_HOST: redis
+
+  worker:
+    image: sentry
+    container_name: worker_sentry
+    volumes:
+      - ./.env:/etc/sentry/.env
+      - ./config.yml:/etc/sentry/config.yml
+    networks:
+      - sentry_net
+    links:
+     - redis
+     - postgres
+    command: "sentry run worker"
+    environment:
+      SENTRY_SECRET_KEY: 'wBmoNHn38F6u6iWYBkOkuvN9oAzDIEY46aiHIuAEZuWVCHH1Rm99HM7TdukJY9DU' # secure secret key
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: qoQ3Xf58Czxgo # secure password
+      SENTRY_REDIS_HOST: redis
+    networks:
+      - sentry_net
+networks:
+  sentry_net:
+    driver: bridge
